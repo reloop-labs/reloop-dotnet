@@ -1,0 +1,9 @@
+# Build folders
+bin/
+obj/
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+*.log
