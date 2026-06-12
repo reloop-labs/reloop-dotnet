@@ -23,6 +23,7 @@ namespace Reloop
         private readonly JsonSerializerOptions _jsonOptions;
 
         public ApiKeyService ApiKeys { get; }
+        public ContactsService Contacts { get; }
 
         public ReloopClient(string apiKey, string baseUrl = "https://reloop.sh")
         {
@@ -46,6 +47,7 @@ namespace Reloop
             };
 
             ApiKeys = new ApiKeyService(this);
+            Contacts = new ContactsService(this);
         }
 
         public async Task<T?> FetchAsync<T>(HttpMethod method, string path, object? body = null)

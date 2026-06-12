@@ -76,10 +76,13 @@ namespace Reloop.Models
     );
 
     public record CreateApiKeyParams(
-        [property: JsonPropertyName("name")] string Name
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("enabled")] bool? Enabled = null,
+        [property: JsonPropertyName("rateLimitEnabled")] bool? RateLimitEnabled = null
     );
 
     public record UpdateApiKeyParams(
-        [property: JsonPropertyName("name")] string Name
+        [property: JsonPropertyName("name")] string? Name = null,
+        [property: JsonPropertyName("enabled")] bool? Enabled = null
     );
 }
