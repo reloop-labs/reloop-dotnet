@@ -24,8 +24,9 @@ namespace Reloop
 
         public ApiKeyService ApiKeys { get; }
         public ContactsService Contacts { get; }
+        public DomainService Domain { get; }
 
-        public ReloopClient(string apiKey, string baseUrl = "https://reloop.sh")
+        public ReloopClient(string apiKey, string baseUrl = "https://reloop.sh", HttpClient? httpClient = null)
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("Reloop SDK requires an apiKey.");
@@ -33,7 +34,7 @@ namespace Reloop
             _apiKey = apiKey;
             _baseUrl = baseUrl;
 
-            _httpClient = new HttpClient
+            _httpClient = httpClient ?? new HttpClient
             {
                 BaseAddress = new Uri(_baseUrl)
             };
@@ -48,6 +49,7 @@ namespace Reloop
 
             ApiKeys = new ApiKeyService(this);
             Contacts = new ContactsService(this);
+            Domain = new DomainService(this);
         }
 
         public async Task<T?> FetchAsync<T>(HttpMethod method, string path, object? body = null)

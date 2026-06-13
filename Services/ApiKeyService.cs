@@ -70,5 +70,10 @@ namespace Reloop.Services
         {
             return _client.FetchAsync<ApiKey>(HttpMethod.Post, $"/api/api-key/v1/disable/{id}");
         }
+
+        public Task<ApiKey?> PauseAsync(string id)
+        {
+            return DisableAsync(id);
+        }
     }
 }
