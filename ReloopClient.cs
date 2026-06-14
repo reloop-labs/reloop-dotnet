@@ -25,6 +25,7 @@ namespace Reloop
         public ApiKeyService ApiKeys { get; }
         public ContactsService Contacts { get; }
         public DomainService Domain { get; }
+        public MailService Mail { get; }
 
         public ReloopClient(string apiKey, string baseUrl = "https://reloop.sh", HttpClient? httpClient = null)
         {
@@ -50,6 +51,7 @@ namespace Reloop
             ApiKeys = new ApiKeyService(this);
             Contacts = new ContactsService(this);
             Domain = new DomainService(this);
+            Mail = new MailService(this);
         }
 
         public async Task<T?> FetchAsync<T>(HttpMethod method, string path, object? body = null)

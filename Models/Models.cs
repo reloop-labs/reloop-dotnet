@@ -183,4 +183,12 @@ namespace Reloop.Models
         [property: JsonPropertyName("dnsProvider")] string? DnsProvider,
         [property: JsonPropertyName("event")] string Event
     );
+
+    public record SendMailResponse(
+        [property: JsonPropertyName("success")] bool Success,
+        [property: JsonPropertyName("messageId")] string MessageId,
+        [property: JsonPropertyName("status")] string Status,
+        [property: JsonPropertyName("timestamp")] string Timestamp,
+        [property: JsonPropertyName("id")] string Id
+    );
 }
