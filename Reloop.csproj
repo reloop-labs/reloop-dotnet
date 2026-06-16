@@ -8,8 +8,8 @@
     <Title>Reloop SDK</Title>
     <Authors>Reloop Labs</Authors>
     <Description>Reloop .NET SDK</Description>
-    <Version>1.8.0</Version>
-    <PackageVersion>1.8.0</PackageVersion>
+    <Version>0.1.0</Version>
+    <PackageVersion>0.1.0</PackageVersion>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
