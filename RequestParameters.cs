@@ -25,8 +25,10 @@ public static class RequestParameters
     {
         var normalized = new Dictionary<string, object?>();
 
-        foreach (var (key, value) in parameters)
+        foreach (var kvp in parameters)
         {
+            var key = kvp.Key;
+            var value = kvp.Value;
             if (key == "unsubscribed")
             {
                 if (!parameters.ContainsKey("status") && value is bool unsubscribed)
@@ -113,8 +115,10 @@ public static class RequestParameters
         }
 
         var query = new List<string>();
-        foreach (var (key, value) in values)
+        foreach (var kvp in values)
         {
+            var key = kvp.Key;
+            var value = kvp.Value;
             query.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString($"{value}")}");
         }
 
