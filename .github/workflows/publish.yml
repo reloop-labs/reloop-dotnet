@@ -25,10 +25,13 @@ jobs:
           dotnet-version: '6.0.x'
 
       - name: NuGet Login
+        id: login
         uses: nuget/login@v1
+        with:
+          user: Reloop
 
       - name: Pack
         run: dotnet pack --configuration Release
 
       - name: Push to NuGet
-        run: dotnet nuget push **/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push **/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
