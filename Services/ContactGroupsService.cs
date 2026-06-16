@@ -16,7 +16,7 @@ public class ContactGroupsService
 
     public Task<JsonElement?> AddContactAsync(string groupId, Dictionary<string, object?> parameters)
     {
-        return _client.FetchAsync<JsonElement>(
+        return _client.FetchAsync<JsonElement?>(
             HttpMethod.Post,
             $"/api/contacts/group/{groupId}",
             RequestParameters.ForRequest(parameters));
@@ -24,7 +24,7 @@ public class ContactGroupsService
 
     public Task<JsonElement?> RemoveContactAsync(string groupId, Dictionary<string, object?> parameters)
     {
-        return _client.FetchAsync<JsonElement>(
+        return _client.FetchAsync<JsonElement?>(
             HttpMethod.Delete,
             $"/api/contacts/group/{groupId}",
             RequestParameters.ForRequest(parameters));
@@ -33,7 +33,7 @@ public class ContactGroupsService
     public Task<JsonElement?> ListContactsAsync(string groupId, Dictionary<string, object?> options)
     {
         var query = RequestParameters.BuildQuery(RequestParameters.ForQuery(options));
-        return _client.FetchAsync<JsonElement>(
+        return _client.FetchAsync<JsonElement?>(
             HttpMethod.Get,
             $"/api/contacts/v1/groups/{groupId}/contacts{query}");
     }
