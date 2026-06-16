@@ -31,7 +31,7 @@ jobs:
           user: Reloop
 
       - name: Pack
-        run: dotnet pack --configuration Release
+        run: dotnet pack Reloop.csproj --configuration Release --output ./artifacts
 
       - name: Push to NuGet
-        run: dotnet nuget push **/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
