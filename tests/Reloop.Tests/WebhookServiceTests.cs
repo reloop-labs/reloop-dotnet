@@ -53,6 +53,16 @@ public class WebhookServiceTests
         await Assert.ThrowsAsync<ReloopValidationException>(
             () => client.Webhook.UpdateAsync("wh_1", new UpdateWebhookParams()));
         await Assert.ThrowsAsync<ReloopValidationException>(() => client.Webhook.TriggerAsync(new TriggerWebhookParams()));
+        await Assert.ThrowsAsync<ReloopValidationException>(
+            () => client.Webhook.CreateAsync(new CreateWebhookParams()));
+        await Assert.ThrowsAsync<ReloopValidationException>(
+            () => client.Webhook.CreateAsync(new CreateWebhookParams
+            {
+                Url = "https://example.com/hook",
+                Events = new List<string>(),
+            }));
+        await Assert.ThrowsAsync<ReloopValidationException>(
+            () => client.Webhook.ListDeliveriesAsync("wh_1", new ListWebhookDeliveriesParams { Status = "" }));
         Assert.Equal(0, handler.RequestCount);
     }
 
@@ -122,6 +132,23 @@ public class WebhookServiceTests
 
         var err = Assert.Throws<WebhookSignatureException>(() => WebhookVerify.Verify(parameters));
         Assert.Contains("tolerance", err.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Verify_RejectsNegativeTolerance()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var header = SignPayload(Secret, timestamp, Payload);
+        var parameters = new VerifyWebhookParams
+        {
+            Payload = Encoding.UTF8.GetBytes(Payload),
+            Headers = new Dictionary<string, string> { [WebhookVerify.WebhookSignatureHeader] = header },
+            Secret = Secret,
+            Tolerance = -1,
+        };
+
+        var err = Assert.Throws<WebhookSignatureException>(() => WebhookVerify.Verify(parameters));
+        Assert.Contains("non-negative", err.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

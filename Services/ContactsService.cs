@@ -12,7 +12,7 @@ public class ContactsService
     private const string ContactsBase = "/api/contacts";
     private static readonly Regex EmailPattern = new(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", RegexOptions.Compiled);
     private static readonly Regex CreatePropertyKeyPattern = new(@"^[a-z0-9_]+$", RegexOptions.Compiled);
-    private static readonly Regex UpdatePropertyKeyPattern = new(@"^[a-z_]+$", RegexOptions.Compiled);
+    private static readonly Regex UpdatePropertyKeyPattern = new(@"^[a-z0-9_]+$", RegexOptions.Compiled);
 
     private readonly ReloopClient _client;
 

@@ -113,6 +113,7 @@ public class InboxMessagesService
         var mailboxId = Validators.RequireNonEmptyString(parameters.MailboxId, "mailboxId");
         var to = Validators.RequireRecipient(parameters.To, "to");
         var subject = Validators.RequireNonEmptyString(parameters.Subject, "subject");
+        Validators.RequireComposeBody(parameters.Text, parameters.Html);
         if (parameters.UndoWindowSeconds.HasValue)
         {
             Validators.RequireFiniteNumber(parameters.UndoWindowSeconds.Value, "undoWindowSeconds");

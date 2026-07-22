@@ -67,13 +67,13 @@ public class DomainService
 
     public Task<Domain?> GetAsync(string domainId)
     {
-        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        var id = Validators.RequirePathSegment(domainId, "domainId");
         return _client.FetchAsync<Domain>(HttpMethod.Get, DomainV1 + "/" + id);
     }
 
     public Task<Domain?> UpdateAsync(string domainId, UpdateDomainParams? parameters)
     {
-        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        var id = Validators.RequirePathSegment(domainId, "domainId");
         return _client.FetchAsync<Domain>(
             new HttpMethod("PATCH"),
             DomainV1 + "/" + id,
@@ -82,13 +82,13 @@ public class DomainService
 
     public Task DeleteAsync(string domainId)
     {
-        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        var id = Validators.RequirePathSegment(domainId, "domainId");
         return _client.FetchAsync<object>(HttpMethod.Delete, DomainV1 + "/" + id);
     }
 
     public Task<DomainStatusResponse?> VerifyAsync(string domainId)
     {
-        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        var id = Validators.RequirePathSegment(domainId, "domainId");
         return _client.FetchAsync<DomainStatusResponse>(
             HttpMethod.Post,
             DomainV1 + "/verify/" + id,

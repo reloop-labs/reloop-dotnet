@@ -26,6 +26,10 @@ public static class WebhookVerify
         }
 
         var tolerance = parameters.Tolerance ?? DefaultToleranceSeconds;
+        if (tolerance < 0)
+        {
+            throw new WebhookSignatureException("Webhook signature tolerance must be non-negative");
+        }
 
         var signatureHeader = GetHeader(parameters.Headers, WebhookSignatureHeader);
         if (string.IsNullOrEmpty(signatureHeader))

@@ -105,7 +105,23 @@ public class InboxMessagesServiceTests
             Subject = "Hello",
         }));
         Assert.Equal("mailboxId", err.Field);
+
+        var bodyErr = await Assert.ThrowsAsync<ReloopValidationException>(() => client.Inbox.Messages.SendAsync(new SendMessageParams
+        {
+            MailboxId = "mbx_1",
+            To = "user@example.com",
+            Subject = "Hello",
+        }));
+        Assert.Equal("params", bodyErr.Field);
         Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task SetReadAsync_DefaultsToTrue()
+    {
+        var (client, handler) = CreateClient();
+        await client.Inbox.Messages.SetReadAsync("msg_1");
+        Assert.Contains("\"isRead\":true", await handler.LastRequest!.Content!.ReadAsStringAsync());
     }
 
     [Fact]

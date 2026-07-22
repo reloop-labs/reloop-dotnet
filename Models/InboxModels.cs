@@ -422,6 +422,7 @@ public static class InboxModels
 
         public SetMessageReadParams()
         {
+            IsRead = true;
         }
 
         public SetMessageReadParams(bool isRead)
@@ -437,6 +438,7 @@ public static class InboxModels
 
         public SetMessageStarParams()
         {
+            IsStarred = true;
         }
 
         public SetMessageStarParams(bool isStarred)
@@ -680,6 +682,7 @@ public static class InboxModels
 
         public SetThreadReadParams()
         {
+            IsRead = true;
         }
 
         public SetThreadReadParams(bool isRead)
@@ -695,6 +698,7 @@ public static class InboxModels
 
         public SetThreadStarParams()
         {
+            IsStarred = true;
         }
 
         public SetThreadStarParams(bool isStarred)

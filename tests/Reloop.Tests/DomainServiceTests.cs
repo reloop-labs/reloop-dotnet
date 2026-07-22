@@ -74,6 +74,8 @@ public class DomainServiceTests
         var (client, handler) = CreateClient();
 
         await Assert.ThrowsAsync<ReloopValidationException>(() => client.Domain.GetAsync("  "));
+        await Assert.ThrowsAsync<ReloopValidationException>(() => client.Domain.GetAsync("../admin"));
+        await Assert.ThrowsAsync<ReloopValidationException>(() => client.Domain.DeleteAsync("dom?x=1"));
 
         Assert.Equal(0, handler.RequestCount);
     }

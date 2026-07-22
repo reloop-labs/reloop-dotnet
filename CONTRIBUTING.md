@@ -24,7 +24,7 @@ Requires **.NET 8 SDK** for tests; the library targets **netstandard2.0** (`Syst
 
 ## Project layout
 
-```
+```text
 ReloopClient.cs
 Version.cs
 Exceptions/            # ReloopValidationException, ReloopApiException, ApiErrorBody, WebhookSignatureException

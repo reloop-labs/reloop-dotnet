@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -17,6 +18,7 @@ public class ReloopClient : IDisposable
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _jsonOptionsIncludeNull;
 
     public ApiKeyService ApiKey { get; }
     public ContactsService Contacts { get; }
@@ -37,21 +39,14 @@ public class ReloopClient : IDisposable
 
         _ownsHttpClient = httpClient == null;
         _httpClient = httpClient ?? new HttpClient();
-        if (_httpClient.BaseAddress == null)
-        {
-            _httpClient.BaseAddress = new Uri(_baseUrl);
-        }
-
-        _httpClient.DefaultRequestHeaders.Remove("x-api-key");
-        _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
-        if (!_httpClient.DefaultRequestHeaders.Accept.Any(h => h.MediaType == "application/json"))
-        {
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        }
 
         _jsonOptions = new JsonSerializerOptions
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            PropertyNameCaseInsensitive = true,
+        };
+        _jsonOptionsIncludeNull = new JsonSerializerOptions
+        {
             PropertyNameCaseInsensitive = true,
         };
 
@@ -82,10 +77,13 @@ public class ReloopClient : IDisposable
         {
             var requestUri = BuildRequestUri(path, query);
             var request = new HttpRequestMessage(method, requestUri);
+            request.Headers.TryAddWithoutValidation("x-api-key", _apiKey);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
             if (body != null)
             {
-                var json = JsonSerializer.Serialize(body, _jsonOptions);
+                var options = ShouldIncludeNulls(body) ? _jsonOptionsIncludeNull : _jsonOptions;
+                var json = JsonSerializer.Serialize(body, options);
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
@@ -125,7 +123,14 @@ public class ReloopClient : IDisposable
                 return default;
             }
 
-            return JsonSerializer.Deserialize<T>(responseText, _jsonOptions);
+            try
+            {
+                return JsonSerializer.Deserialize<T>(responseText, _jsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                throw new ReloopApiException("Reloop response parsing error: " + ex.Message, ex);
+            }
         }
         catch (ReloopApiException)
         {
@@ -148,7 +153,24 @@ public class ReloopClient : IDisposable
         return string.IsNullOrEmpty(trimmed) ? DefaultBaseUrl : trimmed;
     }
 
-    private static string BuildRequestUri(string path, Dictionary<string, string?>? query)
+    private Uri BuildRequestUri(string path, Dictionary<string, string?>? query)
+    {
+        var pathWithQuery = AppendQuery(path, query);
+        if (Uri.TryCreate(pathWithQuery, UriKind.Absolute, out var absolute)
+            && (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps))
+        {
+            return absolute;
+        }
+
+        if (!pathWithQuery.StartsWith("/", StringComparison.Ordinal))
+        {
+            pathWithQuery = "/" + pathWithQuery;
+        }
+
+        return new Uri(_baseUrl + pathWithQuery);
+    }
+
+    private static string AppendQuery(string path, Dictionary<string, string?>? query)
     {
         if (query == null || query.Count == 0)
         {
@@ -167,6 +189,11 @@ public class ReloopClient : IDisposable
 
         var separator = path.IndexOf('?') >= 0 ? "&" : "?";
         return path + separator + string.Join("&", parts);
+    }
+
+    private static bool ShouldIncludeNulls(object body)
+    {
+        return body is IDictionary;
     }
 
     public void Dispose()

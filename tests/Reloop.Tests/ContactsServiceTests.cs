@@ -74,4 +74,35 @@ public class ContactsServiceTests
             new HashSet<string> { "CreateAsync", "DeleteAsync", "GetAsync", "ListAsync", "UpdateAsync" },
             methods);
     }
+
+    [Fact]
+    public async Task UpdateAsync_AllowsDigitPropertyKeys()
+    {
+        var (client, handler) = CreateClient();
+        await client.Contacts.UpdateAsync("con_1", new UpdateContactParams
+        {
+            Properties = new Dictionary<string, object> { ["utm2"] = "ads" },
+        });
+        Assert.Contains("\"utm2\":\"ads\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Channels_UpdateAsync_PreservesNullDescriptionClear()
+    {
+        var (client, handler) = CreateClient();
+        await client.Contacts.Channels.UpdateAsync("chn_1", new UpdateChannelParams
+        {
+            DescriptionPresent = true,
+            DescriptionClear = true,
+        });
+        Assert.Contains("\"description\":null", await handler.LastRequest!.Content!.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Properties_UpdateAsync_SendsNullFallbackValue()
+    {
+        var (client, handler) = CreateClient();
+        await client.Contacts.Properties.UpdateAsync("prop_1", new UpdatePropertyParams { FallbackValue = null });
+        Assert.Contains("\"fallbackValue\":null", await handler.LastRequest!.Content!.ReadAsStringAsync());
+    }
 }

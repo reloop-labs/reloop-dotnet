@@ -248,4 +248,20 @@ public static class Validators
                 field + " must be a number when provided.", field);
         }
     }
+
+    /// <summary>
+    /// Validates and percent-encodes a single URL path segment (rejects ".", "..", and path/query delimiters).
+    /// </summary>
+    public static string RequirePathSegment(string? value, string field)
+    {
+        var id = RequireNonEmptyString(value, field);
+        if (id == "." || id == ".."
+            || id.IndexOfAny(new[] { '/', '\\', '?', '#', '%' }) >= 0)
+        {
+            throw new ReloopValidationException(
+                field + " contains invalid path characters.", field);
+        }
+
+        return Uri.EscapeDataString(id);
+    }
 }

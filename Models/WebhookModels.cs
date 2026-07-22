@@ -124,10 +124,10 @@ public static class WebhookModels
         public bool? RateLimitEnabled { get; set; }
 
         [JsonPropertyName("maxRequestsPerMinute")]
-        public double? MaxRequestsPerMinute { get; set; }
+        public int? MaxRequestsPerMinute { get; set; }
 
         [JsonPropertyName("maxRetries")]
-        public double? MaxRetries { get; set; }
+        public int? MaxRetries { get; set; }
 
         [JsonPropertyName("retryBackoffMultiplier")]
         public double? RetryBackoffMultiplier { get; set; }

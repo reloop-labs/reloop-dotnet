@@ -37,6 +37,18 @@ public class WebhookService
             throw new ReloopValidationException("create params are required and must be an object.", "params");
         }
 
+        Validators.RequireNonEmptyString(parameters.Url, "url");
+        if (parameters.Events == null || parameters.Events.Count == 0)
+        {
+            throw new ReloopValidationException(
+                "events is required and must be a non-empty array.", "events");
+        }
+
+        for (var i = 0; i < parameters.Events.Count; i++)
+        {
+            Validators.RequireNonEmptyString(parameters.Events[i], "events[" + i + "]");
+        }
+
         return _client.FetchAsync<Webhook>(HttpMethod.Post, WebhookV1 + "/", parameters);
     }
 
@@ -288,7 +300,7 @@ public class WebhookService
             query["limit"] = parameters.Limit.Value.ToString();
         }
 
-        if (!string.IsNullOrEmpty(parameters.Status))
+        if (parameters.Status != null)
         {
             RequireDeliveryStatus(parameters.Status, "status");
             query["status"] = parameters.Status;

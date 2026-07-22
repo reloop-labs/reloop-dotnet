@@ -87,4 +87,35 @@ public class ReloopClientTests
         Assert.Equal(0, err.Status);
         Assert.Contains("network", err.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task FetchAsync_MalformedSuccessJsonBecomesReloopApiException()
+    {
+        var (client, _) = CreateClient(handler =>
+        {
+            handler.ResponseBody = "{not-json";
+        });
+
+        var err = await Assert.ThrowsAsync<ReloopApiException>(
+            () => client.FetchAsync<object>(HttpMethod.Get, "/v1/test"));
+
+        Assert.Contains("parsing", err.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Constructor_DoesNotMutateSharedHttpClientDefaults()
+    {
+        var handler = new MockHttpMessageHandler();
+        var shared = new HttpClient(handler) { BaseAddress = new Uri("https://reloop.sh") };
+        using var clientA = new ReloopClient("rl_a", "https://reloop.sh", shared);
+        using var clientB = new ReloopClient("rl_b", "https://reloop.sh", shared);
+
+        await clientA.FetchAsync<object>(HttpMethod.Get, "/v1/a");
+        Assert.Equal("rl_a", handler.LastRequest!.Headers.GetValues("x-api-key").Single());
+
+        await clientB.FetchAsync<object>(HttpMethod.Get, "/v1/b");
+        Assert.Equal("rl_b", handler.LastRequest!.Headers.GetValues("x-api-key").Single());
+
+        Assert.False(shared.DefaultRequestHeaders.Contains("x-api-key"));
+    }
 }
