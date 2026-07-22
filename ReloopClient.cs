@@ -76,7 +76,7 @@ public class ReloopClient : IDisposable
         try
         {
             var requestUri = BuildRequestUri(path, query);
-            var request = new HttpRequestMessage(method, requestUri);
+            using var request = new HttpRequestMessage(method, requestUri);
             request.Headers.TryAddWithoutValidation("x-api-key", _apiKey);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -87,7 +87,7 @@ public class ReloopClient : IDisposable
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
-            var response = await _httpClient.SendAsync(request);
+            using var response = await _httpClient.SendAsync(request);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -155,13 +155,21 @@ public class ReloopClient : IDisposable
 
     private Uri BuildRequestUri(string path, Dictionary<string, string?>? query)
     {
-        var pathWithQuery = AppendQuery(path, query);
-        if (Uri.TryCreate(pathWithQuery, UriKind.Absolute, out var absolute)
-            && (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps))
+        if (string.IsNullOrWhiteSpace(path))
         {
-            return absolute;
+            throw new ArgumentException("Request path is required.", nameof(path));
         }
 
+        // Never attach the API key to a caller-supplied absolute URL (credential exfiltration).
+        // Check the raw path before query append; avoid Uri.TryCreate Absolute on "/..." which
+        // resolves as file:// on Unix and would incorrectly reject relative API paths.
+        if (path.IndexOf("://", StringComparison.Ordinal) >= 0
+            || path.StartsWith("//", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Request paths must be relative.", nameof(path));
+        }
+
+        var pathWithQuery = AppendQuery(path, query);
         if (!pathWithQuery.StartsWith("/", StringComparison.Ordinal))
         {
             pathWithQuery = "/" + pathWithQuery;

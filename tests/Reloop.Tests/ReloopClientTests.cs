@@ -118,4 +118,17 @@ public class ReloopClientTests
 
         Assert.False(shared.DefaultRequestHeaders.Contains("x-api-key"));
     }
+
+    [Fact]
+    public async Task FetchAsync_RejectsAbsoluteUrls()
+    {
+        var (client, handler) = CreateClient();
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => client.FetchAsync<object>(HttpMethod.Get, "https://evil.example/steal"));
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => client.FetchAsync<object>(HttpMethod.Get, "//evil.example/steal"));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
 }
