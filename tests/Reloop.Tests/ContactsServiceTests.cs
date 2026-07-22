@@ -37,7 +37,7 @@ public class ContactsServiceTests
 
         Assert.Equal(HttpMethod.Post, handler.LastRequest?.Method);
         Assert.Equal("/api/contacts/create", handler.LastRequest?.RequestUri?.PathAndQuery);
-        Assert.Contains("\"email\":\"john@example.com\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"email\":\"john@example.com\"", handler.LastRequestBody);
         Assert.Equal("con_1", response!.Id);
     }
 
@@ -83,7 +83,7 @@ public class ContactsServiceTests
         {
             Properties = new Dictionary<string, object> { ["utm2"] = "ads" },
         });
-        Assert.Contains("\"utm2\":\"ads\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"utm2\":\"ads\"", handler.LastRequestBody);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class ContactsServiceTests
             DescriptionPresent = true,
             DescriptionClear = true,
         });
-        Assert.Contains("\"description\":null", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"description\":null", handler.LastRequestBody);
     }
 
     [Fact]
@@ -103,6 +103,6 @@ public class ContactsServiceTests
     {
         var (client, handler) = CreateClient();
         await client.Contacts.Properties.UpdateAsync("prop_1", new UpdatePropertyParams { FallbackValue = null });
-        Assert.Contains("\"fallbackValue\":null", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"fallbackValue\":null", handler.LastRequestBody);
     }
 }

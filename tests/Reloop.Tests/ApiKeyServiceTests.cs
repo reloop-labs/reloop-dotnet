@@ -45,7 +45,7 @@ public class ApiKeyServiceTests
 
         Assert.Equal(HttpMethod.Post, handler.LastRequest?.Method);
         Assert.Equal("/api/api-key/v1/", handler.LastRequest?.RequestUri?.PathAndQuery);
-        Assert.Contains("\"name\":\"prod\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"name\":\"prod\"", handler.LastRequestBody);
         Assert.Equal("rl_secret", response!.Key);
     }
 

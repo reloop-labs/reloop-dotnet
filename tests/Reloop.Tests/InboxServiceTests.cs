@@ -121,7 +121,7 @@ public class InboxMessagesServiceTests
     {
         var (client, handler) = CreateClient();
         await client.Inbox.Messages.SetReadAsync("msg_1");
-        Assert.Contains("\"isRead\":true", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"isRead\":true", handler.LastRequestBody);
     }
 
     [Fact]

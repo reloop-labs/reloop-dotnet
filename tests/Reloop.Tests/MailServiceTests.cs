@@ -40,7 +40,7 @@ public class MailServiceTests
         Assert.Equal(HttpMethod.Post, handler.LastRequest?.Method);
         Assert.Equal("/api/mail/v1/send", handler.LastRequest?.RequestUri?.PathAndQuery);
         Assert.Equal("rl_test", handler.LastRequest?.Headers.GetValues("x-api-key").Single());
-        Assert.Contains("\"from\":\"a@example.com\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"from\":\"a@example.com\"", handler.LastRequestBody);
         Assert.NotNull(response);
         Assert.True(response!.Success);
         Assert.Equal("em_1", response.Id);

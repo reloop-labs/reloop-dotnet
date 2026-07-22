@@ -64,7 +64,7 @@ public class DomainServiceTests
 
         Assert.Equal(HttpMethod.Post, handler.LastRequest?.Method);
         Assert.Equal("/api/domain/v1/create", handler.LastRequest?.RequestUri?.PathAndQuery);
-        Assert.Contains("\"domain\":\"example.com\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"domain\":\"example.com\"", handler.LastRequestBody);
         Assert.Equal("dom_1", response!.Id);
     }
 

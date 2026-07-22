@@ -72,7 +72,7 @@ public class WebhookServiceTests
         var (client, handler) = CreateClient();
         await client.Webhook.PauseAsync("wh_1");
         Assert.Equal(new HttpMethod("PATCH"), handler.LastRequest?.Method);
-        Assert.Contains("\"status\":\"paused\"", await handler.LastRequest!.Content!.ReadAsStringAsync());
+        Assert.Contains("\"status\":\"paused\"", handler.LastRequestBody);
     }
 
     [Fact]
