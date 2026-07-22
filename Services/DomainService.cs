@@ -1,91 +1,97 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Web;
-using Reloop.Models;
+using Reloop.Validation;
+using static Reloop.Models.DomainModels;
 
-namespace Reloop.Services
+namespace Reloop.Services;
+
+/** Manages sending/receiving domains. */
+public class DomainService
 {
-    public class DomainService
+    private const string DomainV1 = "/api/domain/v1";
+
+    private readonly ReloopClient _client;
+
+    internal DomainService(ReloopClient client)
     {
-        private readonly ReloopClient _client;
+        _client = client;
+    }
 
-        internal DomainService(ReloopClient client)
+    public Task<Domain?> CreateAsync(CreateDomainParams? parameters)
+    {
+        var domain = Validators.RequireNonEmptyString(parameters?.Domain, "domain");
+        var body = new CreateDomainParams(domain);
+        if (parameters != null)
         {
-            _client = client;
+            body.ClickTracking = parameters.ClickTracking;
+            body.OpenTracking = parameters.OpenTracking;
+            body.Tls = parameters.Tls;
+            body.SendingEmail = parameters.SendingEmail;
+            body.ReceivingEmail = parameters.ReceivingEmail;
         }
 
-        public Task<Domain?> CreateAsync(CreateDomainParams @params)
-        {
-            return _client.FetchAsync<Domain>(HttpMethod.Post, "/api/domain/v1/create", @params);
-        }
+        return _client.FetchAsync<Domain>(HttpMethod.Post, DomainV1 + "/create", body);
+    }
 
-        public Task<DomainListResponse?> ListAsync(ListDomainsParams? @params = null)
+    public Task<DomainListResponse?> ListAsync(ListDomainsParams? parameters = null)
+    {
+        var query = new Dictionary<string, string?>();
+        if (parameters != null)
         {
-            var path = "/api/domain/v1/list";
-            var query = BuildListQuery(@params);
-            if (!string.IsNullOrEmpty(query))
+            if (parameters.Page.HasValue)
             {
-                path += "?" + query;
+                Validators.RequirePage(parameters.Page.Value, "page");
+                query["page"] = parameters.Page.Value.ToString();
             }
 
-            return _client.FetchAsync<DomainListResponse>(HttpMethod.Get, path);
-        }
-
-        public Task<Domain?> GetAsync(string domainId)
-        {
-            return _client.FetchAsync<Domain>(HttpMethod.Get, $"/api/domain/v1/{domainId}");
-        }
-
-        public Task<DomainNameserversResponse?> GetNameserversAsync(string domainId)
-        {
-            return _client.FetchAsync<DomainNameserversResponse>(
-                HttpMethod.Get,
-                $"/api/domain/v1/nameservers/{domainId}");
-        }
-
-        public Task<Domain?> UpdateAsync(string domainId, UpdateDomainParams @params)
-        {
-            return _client.FetchAsync<Domain>(
-                new HttpMethod("PATCH"),
-                $"/api/domain/v1/{domainId}",
-                @params);
-        }
-
-        public Task<Domain?> DeleteAsync(string domainId)
-        {
-            return _client.FetchAsync<Domain>(HttpMethod.Delete, $"/api/domain/v1/{domainId}");
-        }
-
-        public Task<DomainStatusResponse?> VerifyAsync(string domainId)
-        {
-            return _client.FetchAsync<DomainStatusResponse>(
-                HttpMethod.Post,
-                $"/api/domain/v1/verify/{domainId}");
-        }
-
-        public Task<ForwardDnsResponse?> ForwardDnsAsync(string domainId, ForwardDnsParams @params)
-        {
-            return _client.FetchAsync<ForwardDnsResponse>(
-                HttpMethod.Post,
-                $"/api/domain/v1/verify/{domainId}/forward-dns",
-                @params);
-        }
-
-        internal static string BuildListQuery(ListDomainsParams? @params)
-        {
-            if (@params == null)
+            if (parameters.Limit.HasValue)
             {
-                return string.Empty;
+                Validators.RequireLimit(parameters.Limit.Value, 1, 100, "limit");
+                query["limit"] = parameters.Limit.Value.ToString();
             }
 
-            var query = new List<string>();
-            if (@params.Page.HasValue) query.Add($"page={@params.Page.Value}");
-            if (@params.Limit.HasValue) query.Add($"limit={@params.Limit.Value}");
-            if (!string.IsNullOrEmpty(@params.Q)) query.Add($"q={HttpUtility.UrlEncode(@params.Q)}");
-            if (!string.IsNullOrEmpty(@params.Status)) query.Add($"status={HttpUtility.UrlEncode(@params.Status)}");
+            if (parameters.Q != null)
+            {
+                query["q"] = parameters.Q;
+            }
 
-            return string.Join("&", query);
+            if (parameters.Status != null)
+            {
+                query["status"] = parameters.Status;
+            }
         }
+
+        return _client.FetchAsync<DomainListResponse>(HttpMethod.Get, DomainV1 + "/list", null, query);
+    }
+
+    public Task<Domain?> GetAsync(string domainId)
+    {
+        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        return _client.FetchAsync<Domain>(HttpMethod.Get, DomainV1 + "/" + id);
+    }
+
+    public Task<Domain?> UpdateAsync(string domainId, UpdateDomainParams? parameters)
+    {
+        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        return _client.FetchAsync<Domain>(
+            new HttpMethod("PATCH"),
+            DomainV1 + "/" + id,
+            parameters ?? new UpdateDomainParams());
+    }
+
+    public Task DeleteAsync(string domainId)
+    {
+        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        return _client.FetchAsync<object>(HttpMethod.Delete, DomainV1 + "/" + id);
+    }
+
+    public Task<DomainStatusResponse?> VerifyAsync(string domainId)
+    {
+        var id = Validators.RequireNonEmptyString(domainId, "domainId");
+        return _client.FetchAsync<DomainStatusResponse>(
+            HttpMethod.Post,
+            DomainV1 + "/verify/" + id,
+            new Dictionary<string, object>());
     }
 }

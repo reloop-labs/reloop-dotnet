@@ -1,79 +1,115 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Web;
 using Reloop.Models;
+using Reloop.Validation;
+using static Reloop.Models.ApiKeyModels;
 
-namespace Reloop.Services
+namespace Reloop.Services;
+
+/** Manages organization API keys. */
+public class ApiKeyService
 {
-    public class ApiKeyService
+    private const string ApiKeyV1 = "/api/api-key/v1";
+
+    private readonly ReloopClient _client;
+
+    internal ApiKeyService(ReloopClient client)
     {
-        private readonly ReloopClient _client;
+        _client = client;
+    }
 
-        internal ApiKeyService(ReloopClient client)
-        {
-            _client = client;
-        }
+    public Task<ApiKeyWithKey?> CreateAsync(CreateApiKeyParams? parameters)
+    {
+        var name = Validators.RequireApiKeyName(parameters?.Name, "name");
+        return _client.FetchAsync<ApiKeyWithKey>(
+            HttpMethod.Post,
+            ApiKeyV1 + "/",
+            new Dictionary<string, string> { ["name"] = name });
+    }
 
-        public Task<ApiKeyWithKey?> CreateAsync(CreateApiKeyParams @params)
+    public Task<ApiKeyListResponse?> ListAsync(ApiKeyListParams? parameters = null)
+    {
+        var query = new Dictionary<string, string?>();
+        if (parameters != null)
         {
-            return _client.FetchAsync<ApiKeyWithKey>(HttpMethod.Post, "/api/api-key/v1/", @params);
-        }
-
-        public Task<ApiKeyListResponse?> ListAsync(ApiKeyListParams? @params = null)
-        {
-            var query = new List<string>();
-            if (@params != null)
+            if (parameters.Page.HasValue)
             {
-                if (@params.Page.HasValue) query.Add($"page={@params.Page.Value}");
-                if (@params.Limit.HasValue) query.Add($"limit={@params.Limit.Value}");
-                if (@params.Enabled.HasValue) query.Add($"enabled={@params.Enabled.Value.ToString().ToLower()}");
-                if (!string.IsNullOrEmpty(@params.UserId)) query.Add($"userId={HttpUtility.UrlEncode(@params.UserId)}");
-                if (!string.IsNullOrEmpty(@params.Q)) query.Add($"q={HttpUtility.UrlEncode(@params.Q)}");
+                Validators.RequirePage(parameters.Page.Value, "page");
+                query["page"] = parameters.Page.Value.ToString();
             }
 
-            var path = "/api/api-key/v1/";
-            if (query.Count > 0)
+            if (parameters.Limit.HasValue)
             {
-                path += "?" + string.Join("&", query);
+                Validators.RequireLimit(parameters.Limit.Value, 1, 100, "limit");
+                query["limit"] = parameters.Limit.Value.ToString();
             }
 
-            return _client.FetchAsync<ApiKeyListResponse>(HttpMethod.Get, path);
+            if (parameters.Enabled.HasValue)
+            {
+                query["enabled"] = parameters.Enabled.Value.ToString().ToLowerInvariant();
+            }
+
+            if (parameters.UserId != null)
+            {
+                query["userId"] = parameters.UserId;
+            }
+
+            if (parameters.Q != null)
+            {
+                query["q"] = parameters.Q;
+            }
         }
 
-        public Task<ApiKey?> GetAsync(string id)
-        {
-            return _client.FetchAsync<ApiKey>(HttpMethod.Get, $"/api/api-key/v1/{id}");
-        }
+        return _client.FetchAsync<ApiKeyListResponse>(HttpMethod.Get, ApiKeyV1 + "/", null, query);
+    }
 
-        public Task<ApiKey?> UpdateAsync(string id, UpdateApiKeyParams @params)
-        {
-            return _client.FetchAsync<ApiKey>(new HttpMethod("PATCH"), $"/api/api-key/v1/{id}", @params);
-        }
+    public Task<ApiKey?> GetAsync(string apiKeyId)
+    {
+        var id = Validators.RequireApiKeyId(apiKeyId, "apiKeyId");
+        return _client.FetchAsync<ApiKey>(HttpMethod.Get, ApiKeyV1 + "/" + id);
+    }
 
-        public Task<DeleteApiKeyResponse?> DeleteAsync(string id)
-        {
-            return _client.FetchAsync<DeleteApiKeyResponse>(HttpMethod.Delete, $"/api/api-key/v1/{id}");
-        }
+    public Task<ApiKey?> UpdateAsync(string apiKeyId, UpdateApiKeyParams? parameters)
+    {
+        var id = Validators.RequireApiKeyId(apiKeyId, "apiKeyId");
+        var name = Validators.RequireApiKeyName(parameters?.Name, "name");
+        return _client.FetchAsync<ApiKey>(
+            new HttpMethod("PATCH"),
+            ApiKeyV1 + "/" + id,
+            new Dictionary<string, string> { ["name"] = name });
+    }
 
-        public Task<ApiKeyWithKey?> RotateAsync(string id)
-        {
-            return _client.FetchAsync<ApiKeyWithKey>(HttpMethod.Post, $"/api/api-key/v1/rotate/{id}");
-        }
+    public Task<DeleteApiKeyResponse?> DeleteAsync(string apiKeyId)
+    {
+        var id = Validators.RequireApiKeyId(apiKeyId, "apiKeyId");
+        return _client.FetchAsync<DeleteApiKeyResponse>(HttpMethod.Delete, ApiKeyV1 + "/" + id);
+    }
 
-        public Task<ApiKey?> EnableAsync(string id)
-        {
-            return _client.FetchAsync<ApiKey>(HttpMethod.Post, $"/api/api-key/v1/enable/{id}");
-        }
+    public Task<ApiKeyWithKey?> RotateAsync(string apiKeyId)
+    {
+        var id = Validators.RequireApiKeyId(apiKeyId, "apiKeyId");
+        return _client.FetchAsync<ApiKeyWithKey>(
+            HttpMethod.Post,
+            ApiKeyV1 + "/rotate/" + id,
+            new Dictionary<string, object>());
+    }
 
-        public Task<ApiKey?> DisableAsync(string id)
-        {
-            return _client.FetchAsync<ApiKey>(HttpMethod.Post, $"/api/api-key/v1/disable/{id}");
-        }
+    public Task<ApiKey?> EnableAsync(string apiKeyId)
+    {
+        var id = Validators.RequireApiKeyId(apiKeyId, "apiKeyId");
+        return _client.FetchAsync<ApiKey>(
+            HttpMethod.Post,
+            ApiKeyV1 + "/enable/" + id,
+            new Dictionary<string, object>());
+    }
 
-        public Task<ApiKey?> PauseAsync(string id)
-        {
-            return DisableAsync(id);
-        }
+    public Task<ApiKey?> DisableAsync(string apiKeyId)
+    {
+        var id = Validators.RequireApiKeyId(apiKeyId, "apiKeyId");
+        return _client.FetchAsync<ApiKey>(
+            HttpMethod.Post,
+            ApiKeyV1 + "/disable/" + id,
+            new Dictionary<string, object>());
     }
 }

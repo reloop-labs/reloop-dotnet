@@ -1,22 +1,47 @@
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Threading.Tasks;
 using Reloop.Models;
+using Reloop.Validation;
+using static Reloop.Models.MailModels;
 
-namespace Reloop.Services
+namespace Reloop.Services;
+
+/** Sends transactional email. */
+public class MailService
 {
-    public class MailService
+    private readonly ReloopClient _client;
+
+    internal MailService(ReloopClient client)
     {
-        private readonly ReloopClient _client;
+        _client = client;
+    }
 
-        internal MailService(ReloopClient client)
-        {
-            _client = client;
-        }
+    public Task<SendMailResponse?> SendAsync(SendMailParams? parameters)
+    {
+        parameters ??= new SendMailParams();
 
-        public Task<SendMailResponse?> SendAsync(Dictionary<string, object?> parameters)
+        var from = Validators.RequireMailString(parameters.From, "from");
+        var to = Validators.RequireRecipient(parameters.To, "to");
+        var subject = Validators.RequireMailString(parameters.Subject, "subject");
+
+        var body = new SendMailParams
         {
-            return _client.FetchAsync<SendMailResponse>(HttpMethod.Post, "/api/mail/v1/send", parameters);
-        }
+            From = from,
+            To = to,
+            Subject = subject,
+            Cc = parameters.Cc,
+            Bcc = parameters.Bcc,
+            Text = parameters.Text,
+            Html = parameters.Html,
+            ReplyTo = parameters.ReplyTo,
+            ScheduledAt = parameters.ScheduledAt,
+            Headers = parameters.Headers,
+            ChannelId = parameters.ChannelId,
+            Attachments = parameters.Attachments,
+            Tags = parameters.Tags,
+            Template = parameters.Template,
+            ThreadId = parameters.ThreadId,
+        };
+
+        return _client.FetchAsync<SendMailResponse>(HttpMethod.Post, "/api/mail/v1/send", body);
     }
 }

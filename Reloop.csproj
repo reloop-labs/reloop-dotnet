@@ -8,13 +8,17 @@
     <Title>Reloop SDK</Title>
     <Authors>Reloop Labs</Authors>
     <Description>Reloop .NET SDK</Description>
-    <Version>0.1.0</Version>
-    <PackageVersion>0.1.0</PackageVersion>
+    <Version>2.0.0</Version>
+    <PackageVersion>2.0.0</PackageVersion>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Reloop.Tests" />
   </ItemGroup>
 
   <ItemGroup>
