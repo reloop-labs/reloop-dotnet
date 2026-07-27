@@ -1,7 +1,6 @@
-using System.Collections.Generic;
-using System.Net.Http;
-using Reloop.Services;
+using Reloop.Models;
 using Xunit;
+using static Reloop.Models.MailModels;
 
 namespace Reloop.Tests;
 
@@ -12,7 +11,7 @@ public class MailServiceRouteTests
         var handler = new MockHttpMessageHandler();
         var httpClient = new HttpClient(handler)
         {
-            BaseAddress = new Uri("https://reloop.sh")
+            BaseAddress = new Uri("https://reloop.sh"),
         };
 
         return (new ReloopClient("rl_test", "https://reloop.sh", httpClient), handler);
@@ -23,12 +22,12 @@ public class MailServiceRouteTests
     {
         var (client, handler) = CreateClient();
 
-        await client.Mail.SendAsync(new Dictionary<string, object?>
+        await client.Mail.SendAsync(new SendMailParams
         {
-            ["from"] = "Reloop <hello@send.example.com>",
-            ["to"] = "user@example.com",
-            ["subject"] = "Welcome to Reloop",
-            ["reply_to"] = "support@example.com",
+            From = "Reloop <hello@send.example.com>",
+            To = "user@example.com",
+            Subject = "Welcome to Reloop",
+            ReplyTo = "support@example.com",
         });
 
         Assert.Equal(HttpMethod.Post, handler.LastRequest?.Method);

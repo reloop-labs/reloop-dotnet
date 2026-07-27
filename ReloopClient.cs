@@ -1,94 +1,212 @@
-using System;
+using System.Collections;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using Reloop.Exceptions;
 using Reloop.Services;
 
-namespace Reloop
+namespace Reloop;
+
+public class ReloopClient : IDisposable
 {
-    public class ReloopException : Exception
+    private const string DefaultBaseUrl = "https://reloop.sh";
+
+    private readonly string _apiKey;
+    private readonly string _baseUrl;
+    private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
+    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _jsonOptionsIncludeNull;
+
+    public ApiKeyService ApiKey { get; }
+    public ContactsService Contacts { get; }
+    public DomainService Domain { get; }
+    public MailService Mail { get; }
+    public WebhookService Webhook { get; }
+    public InboxService Inbox { get; }
+
+    public ReloopClient(string apiKey, string baseUrl = DefaultBaseUrl, HttpClient? httpClient = null)
     {
-        public ReloopException(string message) : base(message) { }
-        public ReloopException(string message, Exception innerException) : base(message, innerException) { }
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new ArgumentException("Reloop SDK requires an apiKey.");
+        }
+
+        _apiKey = apiKey.Trim();
+        _baseUrl = NormalizeBaseUrl(baseUrl);
+
+        _ownsHttpClient = httpClient == null;
+        _httpClient = httpClient ?? new HttpClient();
+
+        _jsonOptions = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            PropertyNameCaseInsensitive = true,
+        };
+        _jsonOptionsIncludeNull = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
+        ApiKey = new ApiKeyService(this);
+        Contacts = new ContactsService(this);
+        Domain = new DomainService(this);
+        Mail = new MailService(this);
+        Webhook = new WebhookService(this);
+        Inbox = new InboxService(this);
     }
 
-    public class ReloopClient : IDisposable
+    public string BaseUrl => _baseUrl;
+
+    internal JsonSerializerOptions JsonOptions => _jsonOptions;
+
+    public Task<T?> FetchAsync<T>(HttpMethod method, string path, object? body = null)
     {
-        private readonly string _apiKey;
-        private readonly string _baseUrl;
-        private readonly HttpClient _httpClient;
-        private readonly JsonSerializerOptions _jsonOptions;
+        return FetchAsync<T>(method, path, body, null);
+    }
 
-        public ApiKeyService ApiKeys { get; }
-        public ContactsService Contacts { get; }
-        public DomainService Domain { get; }
-        public MailService Mail { get; }
-
-        public ReloopClient(string apiKey, string baseUrl = "https://reloop.sh", HttpClient? httpClient = null)
+    public async Task<T?> FetchAsync<T>(
+        HttpMethod method,
+        string path,
+        object? body,
+        Dictionary<string, string?>? query)
+    {
+        try
         {
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new ArgumentException("Reloop SDK requires an apiKey.");
+            var requestUri = BuildRequestUri(path, query);
+            using var request = new HttpRequestMessage(method, requestUri);
+            request.Headers.TryAddWithoutValidation("x-api-key", _apiKey);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            _apiKey = apiKey;
-            _baseUrl = baseUrl;
-
-            _httpClient = httpClient ?? new HttpClient
+            if (body != null)
             {
-                BaseAddress = new Uri(_baseUrl)
-            };
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey);
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                var options = ShouldIncludeNulls(body) ? _jsonOptionsIncludeNull : _jsonOptions;
+                var json = JsonSerializer.Serialize(body, options);
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            }
 
-            _jsonOptions = new JsonSerializerOptions
+            using var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
             {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                PropertyNameCaseInsensitive = true
-            };
+                var errorText = await response.Content.ReadAsStringAsync();
+                var errBody = new ApiErrorBody();
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(errorText))
+                    {
+                        errBody = JsonSerializer.Deserialize<ApiErrorBody>(errorText, _jsonOptions)
+                            ?? new ApiErrorBody();
+                    }
+                }
+                catch (JsonException)
+                {
+                    errBody.Message = errorText;
+                }
 
-            ApiKeys = new ApiKeyService(this);
-            Contacts = new ContactsService(this);
-            Domain = new DomainService(this);
-            Mail = new MailService(this);
-        }
+                throw new ReloopApiException(
+                    (int)response.StatusCode,
+                    response.ReasonPhrase ?? ((int)response.StatusCode).ToString(),
+                    errBody);
+            }
 
-        public async Task<T?> FetchAsync<T>(HttpMethod method, string path, object? body = null)
-        {
+            if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+            {
+                return default;
+            }
+
+            var responseText = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrWhiteSpace(responseText))
+            {
+                return default;
+            }
+
             try
             {
-                var request = new HttpRequestMessage(method, path);
-
-                if (body != null)
-                {
-                    var json = JsonSerializer.Serialize(body, _jsonOptions);
-                    request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-                }
-
-                var response = await _httpClient.SendAsync(request);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorBody = await response.Content.ReadAsStringAsync();
-                    throw new ReloopException($"Reloop API Error: {(int)response.StatusCode} {response.ReasonPhrase}. {errorBody}");
-                }
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NoContent || typeof(T) == typeof(object))
-                {
-                    return default;
-                }
-
-                var responseStream = await response.Content.ReadAsStreamAsync();
-                return await JsonSerializer.DeserializeAsync<T>(responseStream, _jsonOptions);
+                return JsonSerializer.Deserialize<T>(responseText, _jsonOptions);
             }
-            catch (HttpRequestException ex)
+            catch (JsonException ex)
             {
-                throw new ReloopException("Reloop Network Error", ex);
+                throw new ReloopApiException("Reloop response parsing error: " + ex.Message, ex);
             }
         }
+        catch (ReloopApiException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new ReloopApiException("Reloop network error: " + ex.Message, ex);
+        }
+    }
 
-        public void Dispose()
+    internal static string NormalizeBaseUrl(string? baseUrl)
+    {
+        var trimmed = string.IsNullOrWhiteSpace(baseUrl) ? DefaultBaseUrl : baseUrl!.Trim();
+        while (trimmed.EndsWith("/", StringComparison.Ordinal))
+        {
+            trimmed = trimmed[..^1];
+        }
+
+        return string.IsNullOrEmpty(trimmed) ? DefaultBaseUrl : trimmed;
+    }
+
+    private Uri BuildRequestUri(string path, Dictionary<string, string?>? query)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Request path is required.", nameof(path));
+        }
+
+        // Never attach the API key to a caller-supplied absolute URL (credential exfiltration).
+        // Check the raw path before query append; avoid Uri.TryCreate Absolute on "/..." which
+        // resolves as file:// on Unix and would incorrectly reject relative API paths.
+        if (path.IndexOf("://", StringComparison.Ordinal) >= 0
+            || path.StartsWith("//", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Request paths must be relative.", nameof(path));
+        }
+
+        var pathWithQuery = AppendQuery(path, query);
+        if (!pathWithQuery.StartsWith("/", StringComparison.Ordinal))
+        {
+            pathWithQuery = "/" + pathWithQuery;
+        }
+
+        return new Uri(_baseUrl + pathWithQuery);
+    }
+
+    private static string AppendQuery(string path, Dictionary<string, string?>? query)
+    {
+        if (query == null || query.Count == 0)
+        {
+            return path;
+        }
+
+        var parts = query
+            .Where(entry => entry.Value != null)
+            .Select(entry => Uri.EscapeDataString(entry.Key) + "=" + Uri.EscapeDataString(entry.Value!))
+            .ToList();
+
+        if (parts.Count == 0)
+        {
+            return path;
+        }
+
+        var separator = path.IndexOf('?') >= 0 ? "&" : "?";
+        return path + separator + string.Join("&", parts);
+    }
+
+    private static bool ShouldIncludeNulls(object body)
+    {
+        return body is IDictionary;
+    }
+
+    public void Dispose()
+    {
+        if (_ownsHttpClient)
         {
             _httpClient.Dispose();
         }
