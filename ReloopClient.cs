@@ -78,6 +78,7 @@ public class ReloopClient : IDisposable
             var requestUri = BuildRequestUri(path, query);
             using var request = new HttpRequestMessage(method, requestUri);
             request.Headers.TryAddWithoutValidation("x-api-key", _apiKey);
+            request.Headers.TryAddWithoutValidation("User-Agent", "reloop-dotnet/0.1.0");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
             if (body != null)
