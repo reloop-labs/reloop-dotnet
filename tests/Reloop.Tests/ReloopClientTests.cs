@@ -40,7 +40,7 @@ public class ReloopClientTests
         Assert.NotNull(client.Contacts);
         Assert.NotNull(client.Webhook);
         Assert.NotNull(client.Inbox);
-        Assert.Equal("2.0.0", Version.VERSION);
+        Assert.Equal("2.0.1", Version.VERSION);
     }
 
     [Fact]

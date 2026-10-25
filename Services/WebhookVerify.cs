@@ -10,7 +10,13 @@ namespace Reloop.Services;
 /** HMAC-SHA256 webhook signature verification. */
 public static class WebhookVerify
 {
-    public const string WebhookSignatureHeader = "x-webhook-signature";
+    /** Header Reloop signs every delivery with: t=&lt;unix&gt;,v1=&lt;hex&gt;. */
+    public const string WebhookSignatureHeader = "Reloop-Signature";
+    public const string WebhookTimestampHeader = "Reloop-Timestamp";
+    public const string WebhookIdHeader = "Reloop-Id";
+
+    /** Header name used before 2.0.1. Still accepted as a fallback. */
+    private const string LegacyWebhookSignatureHeader = "x-webhook-signature";
     public const int DefaultToleranceSeconds = 300;
 
     public static WebhookEvent Verify(VerifyWebhookParams parameters)
@@ -32,6 +38,10 @@ public static class WebhookVerify
         }
 
         var signatureHeader = GetHeader(parameters.Headers, WebhookSignatureHeader);
+        if (string.IsNullOrEmpty(signatureHeader))
+        {
+            signatureHeader = GetHeader(parameters.Headers, LegacyWebhookSignatureHeader);
+        }
         if (string.IsNullOrEmpty(signatureHeader))
         {
             throw new WebhookSignatureException("Missing " + WebhookSignatureHeader + " header");
@@ -135,7 +145,7 @@ public static class WebhookVerify
         if (string.IsNullOrEmpty(timestamp) || signatures.Count == 0)
         {
             throw new WebhookSignatureException(
-                "Invalid X-Webhook-Signature header: expected t= and v1= values");
+                "Invalid " + WebhookSignatureHeader + " header: expected t= and v1= values");
         }
 
         return new ParsedSignature(timestamp, signatures.ToArray());
@@ -172,7 +182,7 @@ public static class WebhookVerify
             || double.IsNaN(ts)
             || double.IsInfinity(ts))
         {
-            throw new WebhookSignatureException("Invalid timestamp in X-Webhook-Signature header");
+            throw new WebhookSignatureException("Invalid timestamp in " + WebhookSignatureHeader + " header");
         }
 
         var age = Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - (long)Math.Floor(ts));
@@ -210,39 +220,71 @@ public static class WebhookVerify
                 throw new WebhookSignatureException("Webhook payload missing required field: id");
             }
 
-            if (!root.TryGetProperty("event", out var eventNode)
-                || eventNode.ValueKind != JsonValueKind.String
-                || string.IsNullOrEmpty(eventNode.GetString()))
+            // Production envelope: { id, type, created_at, data }.
+            // Legacy envelope (pre-2.0.1 fixtures): { id, event, payload, timestamp }.
+            var type = GetString(root, "type") ?? GetString(root, "event");
+            if (string.IsNullOrEmpty(type))
             {
-                throw new WebhookSignatureException("Webhook payload missing required field: event");
+                throw new WebhookSignatureException("Webhook payload missing required field: type");
             }
 
-            if (!root.TryGetProperty("payload", out var payloadNode)
-                || payloadNode.ValueKind != JsonValueKind.Object)
+            JsonElement dataNode;
+            if (!(root.TryGetProperty("data", out dataNode) && dataNode.ValueKind == JsonValueKind.Object)
+                && !(root.TryGetProperty("payload", out dataNode) && dataNode.ValueKind == JsonValueKind.Object))
             {
-                throw new WebhookSignatureException("Webhook payload missing required field: payload");
+                throw new WebhookSignatureException("Webhook payload missing required field: data");
             }
 
-            if (!root.TryGetProperty("timestamp", out var timestampNode)
-                || timestampNode.ValueKind != JsonValueKind.Number
-                || !timestampNode.TryGetDouble(out var ts)
-                || double.IsNaN(ts)
-                || double.IsInfinity(ts))
+            string createdAt;
+            double unixSeconds;
+            var createdAtRaw = GetString(root, "created_at");
+            if (!string.IsNullOrEmpty(createdAtRaw))
             {
-                throw new WebhookSignatureException("Webhook payload missing required field: timestamp");
+                if (!DateTimeOffset.TryParse(createdAtRaw, CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal, out var parsedAt))
+                {
+                    throw new WebhookSignatureException("Webhook payload has an invalid created_at");
+                }
+
+                createdAt = createdAtRaw;
+                unixSeconds = parsedAt.ToUnixTimeMilliseconds() / 1000.0;
+            }
+            else if (root.TryGetProperty("timestamp", out var timestampNode)
+                     && timestampNode.ValueKind == JsonValueKind.Number
+                     && timestampNode.TryGetDouble(out var ts)
+                     && !double.IsNaN(ts)
+                     && !double.IsInfinity(ts))
+            {
+                unixSeconds = ts;
+                createdAt = DateTimeOffset.FromUnixTimeMilliseconds((long)(ts * 1000))
+                    .UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                throw new WebhookSignatureException("Webhook payload missing required field: created_at");
             }
 
-            var payload = JsonSerializer.Deserialize<Dictionary<string, object>>(payloadNode.GetRawText())
+            var data = JsonSerializer.Deserialize<Dictionary<string, object>>(dataNode.GetRawText())
                 ?? new Dictionary<string, object>();
 
             return new WebhookEvent
             {
                 Id = idNode.GetString(),
-                Event = eventNode.GetString(),
-                Timestamp = ts,
-                Payload = payload,
+                Type = type,
+                CreatedAt = createdAt,
+                Data = data,
+                Event = type,
+                Payload = data,
+                Timestamp = unixSeconds,
             };
         }
+    }
+
+    private static string? GetString(JsonElement root, string name)
+    {
+        return root.TryGetProperty(name, out var node) && node.ValueKind == JsonValueKind.String
+            ? node.GetString()
+            : null;
     }
 
     private static string BytesToHex(byte[] bytes)

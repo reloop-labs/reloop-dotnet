@@ -151,6 +151,86 @@ public class WebhookServiceTests
         Assert.Contains("non-negative", err.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    private const string ProductionPayload =
+        "{\"id\":\"whev_01abc\",\"type\":\"email.received\",\"created_at\":\"2026-10-26T12:00:00.000Z\",\"data\":{\"email_id\":\"in_1\",\"subject\":\"Hello\"}}";
+
+    [Fact]
+    public void Verify_AcceptsProductionDelivery()
+    {
+        Assert.Equal("Reloop-Signature", WebhookVerify.WebhookSignatureHeader);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var header = SignPayload(Secret, timestamp, ProductionPayload);
+        var parameters = new VerifyWebhookParams
+        {
+            Payload = Encoding.UTF8.GetBytes(ProductionPayload),
+            Headers = new Dictionary<string, string>
+            {
+                ["reloop-signature"] = header,
+                ["reloop-timestamp"] = timestamp,
+                ["reloop-id"] = "whev_01abc",
+            },
+            Secret = Secret,
+        };
+
+        var webhookEvent = WebhookVerify.Verify(parameters);
+        Assert.Equal("whev_01abc", webhookEvent.Id);
+        Assert.Equal("email.received", webhookEvent.Type);
+        Assert.Equal("2026-10-26T12:00:00.000Z", webhookEvent.CreatedAt);
+        Assert.Equal("Hello", GetPayloadString(webhookEvent.Data!, "subject"));
+        Assert.Equal(webhookEvent.Type, webhookEvent.Event);
+    }
+
+    [Fact]
+    public void Verify_AcceptsLegacyHeader()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var header = SignPayload(Secret, timestamp, ProductionPayload);
+        var parameters = new VerifyWebhookParams
+        {
+            Payload = Encoding.UTF8.GetBytes(ProductionPayload),
+            Headers = new Dictionary<string, string> { ["x-webhook-signature"] = header },
+            Secret = Secret,
+        };
+
+        Assert.Equal("email.received", WebhookVerify.Verify(parameters).Type);
+    }
+
+    [Fact]
+    public void Verify_RejectsTamperedProductionBody()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var header = SignPayload(Secret, timestamp, ProductionPayload);
+        var tampered = Encoding.UTF8.GetBytes(ProductionPayload.Replace("Hello", "Hacked"));
+
+        Assert.Throws<WebhookSignatureException>(() => WebhookService.ConstructEvent(tampered, header, Secret, 300));
+    }
+
+    [Fact]
+    public void Verify_MissingHeaderNamesReloopSignature()
+    {
+        var parameters = new VerifyWebhookParams
+        {
+            Payload = Encoding.UTF8.GetBytes(ProductionPayload),
+            Headers = new Dictionary<string, string>(),
+            Secret = Secret,
+        };
+
+        var err = Assert.Throws<WebhookSignatureException>(() => WebhookVerify.Verify(parameters));
+        Assert.Contains("Reloop-Signature", err.Message);
+    }
+
+    [Fact]
+    public void ApiErrorBody_ReadsFixAndLegacyTip()
+    {
+        var withFix = JsonSerializer.Deserialize<ApiErrorBody>(
+            "{\"message\":\"Domain not verified\",\"why\":\"No DKIM\",\"fix\":\"Verify the domain\"}")!;
+        Assert.Equal("Verify the domain", withFix.Fix);
+        Assert.Equal("Verify the domain", withFix.Tip);
+
+        var withTip = JsonSerializer.Deserialize<ApiErrorBody>("{\"message\":\"x\",\"tip\":\"Try again\"}")!;
+        Assert.Equal("Try again", withTip.Fix);
+    }
+
     [Fact]
     public void SurfaceLock()
     {

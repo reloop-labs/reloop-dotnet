@@ -303,18 +303,34 @@ public static class WebhookModels
         public string? Message { get; set; }
     }
 
+    /** A verified webhook delivery: { id, type, created_at, data }. */
     public class WebhookEvent
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
 
-        [JsonPropertyName("event")]
+        /** Event type, e.g. email.delivered or email.received. */
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
+
+        /** ISO 8601 time the event was created. */
+        [JsonPropertyName("created_at")]
+        public string? CreatedAt { get; set; }
+
+        /** Event-specific fields. */
+        [JsonPropertyName("data")]
+        public Dictionary<string, object>? Data { get; set; }
+
+        /** Deprecated: use <see cref="Type"/>. */
+        [JsonIgnore]
         public string? Event { get; set; }
 
-        [JsonPropertyName("payload")]
+        /** Deprecated: use <see cref="Data"/>. */
+        [JsonIgnore]
         public Dictionary<string, object>? Payload { get; set; }
 
-        [JsonPropertyName("timestamp")]
+        /** Deprecated: use <see cref="CreatedAt"/>. Unix seconds. */
+        [JsonIgnore]
         public double Timestamp { get; set; }
     }
 

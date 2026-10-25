@@ -131,7 +131,9 @@ await client.Contacts.Properties.CreateAsync(new CreatePropertyParams
 using Reloop.Services;
 using static Reloop.Models.WebhookModels;
 
+// signatureHeader: the Reloop-Signature request header; payloadBytes: the raw body
 var webhookEvent = WebhookService.ConstructEvent(payloadBytes, signatureHeader, secret, tolerance: 300);
+// webhookEvent.Type, webhookEvent.CreatedAt, webhookEvent.Data
 // or
 var verified = client.Webhook.Verify(new VerifyWebhookParams
 {
